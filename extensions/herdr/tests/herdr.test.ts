@@ -251,7 +251,7 @@ describe("runClaude", () => {
         result: {
           workspaces: [
             { workspace_id: "1", label: "other", focused: true, cwd: "/Users/test/other", tab_count: 1 },
-            { workspace_id: "2", label: "claude: Vault", focused: false, cwd: "/Users/test/Vault", tab_count: 1 },
+            { workspace_id: "2", label: "Vault", focused: false, cwd: "/Users/test/Vault", tab_count: 1 },
           ],
         },
       }),
@@ -262,7 +262,7 @@ describe("runClaude", () => {
     expect(calls).toContainEqual({ bin: "herdr", args: ["workspace", "focus", "2"] });
     expect(calls).toContainEqual({
       bin: "herdr",
-      args: ["tab", "create", "--workspace", "2", "--label", "claude: Vault"],
+      args: ["tab", "create", "--workspace", "2", "--label", "Vault"],
     });
     expect(calls).toContainEqual({ bin: "herdr", args: ["pane", "run", "2-2", "cd '/Users/test/Vault'"] });
     expect(calls).toContainEqual({ bin: "herdr", args: ["pane", "run", "2-2", "claude"] });
@@ -280,12 +280,75 @@ describe("runClaude", () => {
     await h.runClaude({ folder: "~/NewFolder", prompt: "q", focus: true });
     expect(calls).toContainEqual({
       bin: "herdr",
-      args: ["workspace", "create", "--cwd", "/Users/test/NewFolder", "--label", "claude: NewFolder"],
+      args: ["workspace", "create", "--cwd", "/Users/test/NewFolder", "--label", "NewFolder"],
     });
-    // No cd call in the new-workspace path — herdr's --cwd already places the pane.
     expect(calls.find((c) => c.args[3]?.startsWith("cd "))).toBeUndefined();
     expect(calls).toContainEqual({ bin: "herdr", args: ["pane", "run", "5-1", "claude"] });
     expect(calls).toContainEqual({ bin: "herdr", args: ["pane", "send-text", "5-1", "q"] });
+  });
+
+  it("dismisses claude's first-run trust prompt before submitting the question", async () => {
+    process.env.HOME = "/Users/test";
+    const calls: Array<{ bin: string; args: string[] }> = [];
+    const sh = vi.fn(async (bin: string, args: string[]) => {
+      calls.push({ bin, args });
+      const key = [bin, ...args].join(" ");
+      if (key.startsWith("herdr workspace list")) {
+        return JSON.stringify({ result: { workspaces: [] } });
+      }
+      if (key.startsWith("herdr workspace create")) {
+        return JSON.stringify({ result: { root_pane: { pane_id: "9-1" } } });
+      }
+      if (key.startsWith("herdr pane read")) {
+        return "Do you trust the files in this folder?\n  /Users/test/x\n1. Yes, proceed (default)\n2. No, exit\n❯ 1";
+      }
+      return "";
+    });
+    const h = createHerdr({ sh, bin: "herdr" });
+    await h.runClaude({ folder: "~/x", prompt: "ask me anything", focus: true });
+
+    const seq = calls.map((c) => c.args.join(" "));
+    const claudeIdx = seq.indexOf("pane run 9-1 claude");
+    const readIdx = seq.findIndex((s) => s.startsWith("pane read 9-1"));
+    const trustEnterIdx = seq.findIndex((s, i) => i > readIdx && s === "pane send-keys 9-1 Enter");
+    const sendTextIdx = seq.findIndex((s) => s.startsWith("pane send-text 9-1 ask me anything"));
+    const finalEnterIdx = seq.findIndex((s, i) => i > sendTextIdx && s === "pane send-keys 9-1 Enter");
+    expect(claudeIdx).toBeGreaterThan(-1);
+    expect(readIdx).toBeGreaterThan(claudeIdx);
+    expect(trustEnterIdx).toBeGreaterThan(readIdx);
+    expect(sendTextIdx).toBeGreaterThan(trustEnterIdx);
+    expect(finalEnterIdx).toBeGreaterThan(sendTextIdx);
+  });
+
+  it("skips the trust-prompt Enter when pane read shows no trust prompt", async () => {
+    process.env.HOME = "/Users/test";
+    const calls: Array<{ bin: string; args: string[] }> = [];
+    const sh = vi.fn(async (bin: string, args: string[]) => {
+      calls.push({ bin, args });
+      const key = [bin, ...args].join(" ");
+      if (key.startsWith("herdr workspace list")) {
+        return JSON.stringify({ result: { workspaces: [] } });
+      }
+      if (key.startsWith("herdr workspace create")) {
+        return JSON.stringify({ result: { root_pane: { pane_id: "1-1" } } });
+      }
+      if (key.startsWith("herdr pane read")) {
+        return "Welcome to claude\n❯ ";
+      }
+      return "";
+    });
+    const h = createHerdr({ sh, bin: "herdr" });
+    await h.runClaude({ folder: "~/x", prompt: "q", focus: true });
+
+    const seq = calls.map((c) => c.args.join(" "));
+    const claudeIdx = seq.indexOf("pane run 1-1 claude");
+    const sendTextIdx = seq.findIndex((s) => s.startsWith("pane send-text 1-1 q"));
+    // Between claude launch and sending the user's text, there should be exactly one
+    // pane read and no send-keys Enter (only the final Enter after send-text).
+    const enterBeforeText = seq
+      .slice(claudeIdx, sendTextIdx)
+      .filter((s) => s === "pane send-keys 1-1 Enter");
+    expect(enterBeforeText).toHaveLength(0);
   });
 
   it("passes --no-focus when focus is false", async () => {

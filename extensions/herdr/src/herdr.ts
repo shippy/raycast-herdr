@@ -108,11 +108,46 @@ export function createHerdr({ sh, bin }: { sh: Sh; bin: string }): Herdr {
     }
   }
 
+  async function waitForClaudeReady(paneId: string): Promise<void> {
+    try {
+      await sh(bin, [
+        "wait", "output", paneId,
+        "--match", "Do you trust|❯ ",
+        "--regex",
+        "--timeout", "15000",
+      ]);
+    } catch {
+      await new Promise((r) => setTimeout(r, 500));
+      return;
+    }
+
+    let content = "";
+    try {
+      content = await sh(bin, ["pane", "read", paneId, "--source", "recent", "--lines", "100"]);
+    } catch {
+      // ignore
+    }
+
+    if (content.includes("Do you trust")) {
+      await sh(bin, ["pane", "send-keys", paneId, "Enter"]);
+      try {
+        await sh(bin, [
+          "wait", "output", paneId,
+          "--match", "❯ |Try \"|Welcome",
+          "--regex",
+          "--timeout", "15000",
+        ]);
+      } catch {
+        await new Promise((r) => setTimeout(r, 500));
+      }
+    }
+  }
+
   async function runClaude(opts: RunClaudeOptions): Promise<void> {
     const cwd = expandHome(opts.folder);
     const focusFlag = opts.focus ? [] : ["--no-focus"];
     const folderName = cwd.split("/").filter(Boolean).pop() ?? cwd;
-    const label = `${opts.labelPrefix ?? "claude"}: ${folderName}`;
+    const label = opts.labelPrefix ? `${opts.labelPrefix}: ${folderName}` : folderName;
 
     const workspaces = await listWorkspaces();
     const match = workspaces.find((w) => w.cwd === cwd);
@@ -130,11 +165,8 @@ export function createHerdr({ sh, bin }: { sh: Sh; bin: string }): Herdr {
 
     await sh(bin, ["pane", "run", paneId, "claude"]);
 
-    try {
-      await sh(bin, ["wait", "output", paneId, "--match", DEFAULT_READY_MATCH, "--regex", "--timeout", "15000"]);
-    } catch {
-      await new Promise((r) => setTimeout(r, 500));
-    }
+    await waitForClaudeReady(paneId);
+
     await sh(bin, ["pane", "send-text", paneId, opts.prompt]);
     await sh(bin, ["pane", "send-keys", paneId, "Enter"]);
   }
