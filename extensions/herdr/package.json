@@ -1,0 +1,108 @@
+{
+  "$schema": "https://www.raycast.com/schemas/extension.json",
+  "name": "herdr",
+  "title": "Herdr",
+  "description": "Drive the running herdr instance from Raycast.",
+  "icon": "command-icon.png",
+  "author": "simon",
+  "categories": ["Developer Tools", "Productivity"],
+  "license": "MIT",
+  "preferences": [
+    {
+      "name": "herdrPath",
+      "title": "herdr binary path",
+      "description": "Override the auto-detected herdr CLI path.",
+      "type": "textfield",
+      "required": false,
+      "default": ""
+    }
+  ],
+  "commands": [
+    {
+      "name": "ask-claude",
+      "title": "Ask Claude",
+      "subtitle": "herdr",
+      "description": "Open claude in a configured folder and submit a prompt.",
+      "mode": "no-view",
+      "arguments": [
+        {
+          "name": "prompt",
+          "placeholder": "What do you want to ask?",
+          "type": "text",
+          "required": true
+        }
+      ],
+      "preferences": [
+        {
+          "name": "folder",
+          "title": "Folder",
+          "description": "Directory to run claude in.",
+          "type": "directory",
+          "required": false,
+          "default": "~/Documents/Claude-Vault"
+        },
+        {
+          "name": "placement",
+          "title": "Placement",
+          "description": "Where to put the new pane.",
+          "type": "dropdown",
+          "required": false,
+          "default": "tab",
+          "data": [
+            { "title": "New tab in focused workspace", "value": "tab" },
+            { "title": "New workspace", "value": "workspace" },
+            { "title": "Split focused pane", "value": "split" }
+          ]
+        },
+        {
+          "name": "focus",
+          "title": "Focus",
+          "description": "Focus the new pane and bring herdr to the front.",
+          "label": "Focus the new pane and bring herdr to the front",
+          "type": "checkbox",
+          "required": false,
+          "default": true
+        }
+      ]
+    },
+    {
+      "name": "run-action",
+      "title": "Run Herdr Action",
+      "subtitle": "herdr",
+      "description": "Pick and run a user-defined action from the local actions config.",
+      "mode": "view"
+    },
+    {
+      "name": "focus-workspace",
+      "title": "Focus Herdr Workspace",
+      "subtitle": "herdr",
+      "description": "Pick a herdr workspace and focus it.",
+      "mode": "view"
+    },
+    {
+      "name": "edit-config",
+      "title": "Edit Herdr Actions Config",
+      "subtitle": "herdr",
+      "description": "Open the local actions config file in your editor.",
+      "mode": "no-view"
+    }
+  ],
+  "dependencies": {
+    "@raycast/api": "^1.78.0",
+    "@raycast/utils": "^1.17.0",
+    "zod": "^3.23.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@types/react": "^18.0.0",
+    "react": "^18.0.0",
+    "typescript": "^5.4.0",
+    "vitest": "^1.6.0"
+  },
+  "scripts": {
+    "build": "ray build",
+    "dev": "ray develop",
+    "lint": "ray lint",
+    "test": "vitest run"
+  }
+}
