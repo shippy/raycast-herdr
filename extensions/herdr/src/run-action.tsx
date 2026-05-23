@@ -5,6 +5,7 @@ import {
   Form,
   Icon,
   List,
+  closeMainWindow,
   getPreferenceValues,
   showToast,
   Toast,
@@ -136,6 +137,7 @@ async function runActionAndToast(action: HerdrAction, prompt?: string) {
     const h = createHerdr({ sh, bin });
     await h.runAction(action, prompt);
     if (action.focus) await bringHerdrToFront();
+    await closeMainWindow();
     await showToast({ style: Toast.Style.Success, title: `Ran ${action.name}` });
   } catch (err) {
     await showToast({ style: Toast.Style.Failure, title: "Action failed", message: (err as Error).message });

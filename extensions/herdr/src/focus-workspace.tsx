@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Action, ActionPanel, Icon, List, getPreferenceValues, showToast, Toast } from "@raycast/api";
+import { Action, ActionPanel, Icon, List, closeMainWindow, getPreferenceValues, showToast, Toast } from "@raycast/api";
 import { spawn } from "child_process";
 import { createHerdr } from "./herdr";
 import type { Workspace } from "./herdr";
@@ -72,6 +72,7 @@ export default function Command() {
                     const h = createHerdr({ sh, bin });
                     await h.focusWorkspace(w.id);
                     bringHerdrToFront();
+                    await closeMainWindow();
                   } catch (err) {
                     await showToast({
                       style: Toast.Style.Failure,
