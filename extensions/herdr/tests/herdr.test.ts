@@ -158,3 +158,87 @@ describe("runAction placement", () => {
     expect(calls[0].args).toEqual(["workspace", "create", "--cwd", "/Users/test/foo"]);
   });
 });
+
+describe("runAction prompt delivery", () => {
+  it("submitVia=arg substitutes {prompt} (shell-quoted) into command", async () => {
+    const { sh, calls } = makeShStub({
+      "herdr workspace create": JSON.stringify({ result: { root_pane: { pane_id: "1-1" } } }),
+    });
+    const h = createHerdr({ sh, bin: "herdr" });
+    await h.runAction(
+      actionDefaults({
+        placement: "workspace",
+        command: "claude {prompt}",
+        prompt: { submitVia: "arg", required: true, label: "Prompt" },
+      }),
+      "what's up?",
+    );
+    expect(calls).toContainEqual({ bin: "herdr", args: ["pane", "run", "1-1", `claude 'what'\\''s up?'`] });
+  });
+
+  it("submitVia=send-text waits for ready, sends text, presses Enter", async () => {
+    const { sh, calls } = makeShStub({
+      "herdr workspace create": JSON.stringify({ result: { root_pane: { pane_id: "1-1" } } }),
+    });
+    const h = createHerdr({ sh, bin: "herdr" });
+    await h.runAction(
+      actionDefaults({
+        placement: "workspace",
+        command: "claude",
+        prompt: { submitVia: "send-text", required: true, label: "Prompt" },
+      }),
+      "hello",
+    );
+    const cmds = calls.map((c) => c.args.join(" "));
+    const waitIdx = cmds.findIndex((s) => s.startsWith("wait output 1-1"));
+    const sendIdx = cmds.findIndex((s) => s.startsWith("pane send-text 1-1"));
+    const enterIdx = cmds.findIndex((s) => s.startsWith("pane send-keys 1-1 Enter"));
+    expect(waitIdx).toBeGreaterThan(-1);
+    expect(sendIdx).toBeGreaterThan(waitIdx);
+    expect(enterIdx).toBeGreaterThan(sendIdx);
+  });
+
+  it("submitVia=send-text falls back to delay when wait output errors", async () => {
+    const calls: Array<{ bin: string; args: string[] }> = [];
+    const sh = vi.fn(async (bin: string, args: string[]) => {
+      calls.push({ bin, args });
+      const key = [bin, ...args].join(" ");
+      if (key.startsWith("herdr workspace create")) {
+        return JSON.stringify({ result: { root_pane: { pane_id: "1-1" } } });
+      }
+      if (key.startsWith("herdr wait output")) {
+        throw new Error("timeout");
+      }
+      return "";
+    });
+    const h = createHerdr({ sh, bin: "herdr" });
+    await h.runAction(
+      actionDefaults({
+        placement: "workspace",
+        command: "claude",
+        prompt: { submitVia: "send-text", required: true, label: "Prompt" },
+      }),
+      "x",
+    );
+    const cmds = calls.map((c) => c.args.join(" "));
+    expect(cmds.some((s) => s.startsWith("pane send-text 1-1"))).toBe(true);
+    expect(cmds.some((s) => s.startsWith("pane send-keys 1-1 Enter"))).toBe(true);
+  });
+
+  it("uses prompt.readyMatch when provided", async () => {
+    const { sh, calls } = makeShStub({
+      "herdr workspace create": JSON.stringify({ result: { root_pane: { pane_id: "1-1" } } }),
+    });
+    const h = createHerdr({ sh, bin: "herdr" });
+    await h.runAction(
+      actionDefaults({
+        placement: "workspace",
+        command: "claude",
+        prompt: { submitVia: "send-text", required: true, label: "Prompt", readyMatch: "❯❯" },
+      }),
+      "x",
+    );
+    const waitCall = calls.find((c) => c.args[0] === "wait" && c.args[1] === "output");
+    expect(waitCall?.args).toContain("❯❯");
+  });
+});

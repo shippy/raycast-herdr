@@ -22,6 +22,8 @@ function shellQuote(s: string): string {
   return `'${s.replace(/'/g, `'\\''`)}'`;
 }
 
+const DEFAULT_READY_MATCH = ">|\\$\\s*$|❯";
+
 export function createHerdr({ sh, bin }: { sh: Sh; bin: string }): Herdr {
   async function listWorkspaces(): Promise<Workspace[]> {
     const out = await sh(bin, ["workspace", "list"]);
@@ -61,7 +63,7 @@ export function createHerdr({ sh, bin }: { sh: Sh; bin: string }): Herdr {
     await sh(bin, ["workspace", "focus", id]);
   }
 
-  async function runAction(action: Action, _prompt?: string): Promise<void> {
+  async function runAction(action: Action, prompt?: string): Promise<void> {
     const cwd = expandHome(action.cwd);
     const focusFlag = action.focus ? [] : ["--no-focus"];
     const labelArgs = action.label ? ["--label", action.label] : [];
@@ -82,7 +84,20 @@ export function createHerdr({ sh, bin }: { sh: Sh; bin: string }): Herdr {
       await sh(bin, ["pane", "run", paneId, `cd ${shellQuote(cwd)}`]);
     }
 
-    await sh(bin, ["pane", "run", paneId, action.command]);
+    const useArg = action.prompt?.submitVia === "arg" && prompt !== undefined;
+    const cmd = useArg ? action.command.replace("{prompt}", shellQuote(prompt!)) : action.command;
+    await sh(bin, ["pane", "run", paneId, cmd]);
+
+    if (action.prompt?.submitVia === "send-text" && prompt !== undefined) {
+      const match = action.prompt.readyMatch ?? DEFAULT_READY_MATCH;
+      try {
+        await sh(bin, ["wait", "output", paneId, "--match", match, "--regex", "--timeout", "15000"]);
+      } catch {
+        await new Promise((r) => setTimeout(r, 500));
+      }
+      await sh(bin, ["pane", "send-text", paneId, prompt]);
+      await sh(bin, ["pane", "send-keys", paneId, "Enter"]);
+    }
   }
 
   return { listWorkspaces, currentWorkspaceId, focusedPaneId, focusWorkspace, runAction };
