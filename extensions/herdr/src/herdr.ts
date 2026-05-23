@@ -150,7 +150,7 @@ export function createHerdr({ sh, bin }: { sh: Sh; bin: string }): Herdr {
     const label = opts.labelPrefix ? `${opts.labelPrefix}: ${folderName}` : folderName;
 
     const workspaces = await listWorkspaces();
-    const match = workspaces.find((w) => w.cwd === cwd);
+    const match = workspaces.find((w) => w.cwd === cwd || w.label === folderName);
 
     let paneId: string;
     if (match) {

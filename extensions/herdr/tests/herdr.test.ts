@@ -270,6 +270,27 @@ describe("runClaude", () => {
     expect(calls).toContainEqual({ bin: "herdr", args: ["pane", "send-keys", "2-2", "Enter"] });
   });
 
+  it("reuses by label when cwd is not exposed in workspace list", async () => {
+    process.env.HOME = "/Users/test";
+    const { sh, calls } = makeShStub({
+      "herdr workspace list": JSON.stringify({
+        result: {
+          workspaces: [
+            { workspace_id: "7", label: "Claude-Vault", focused: false, tab_count: 1 },
+          ],
+        },
+      }),
+      "herdr tab create": JSON.stringify({ result: { root_pane: { pane_id: "7-2" } } }),
+    });
+    const h = createHerdr({ sh, bin: "herdr" });
+    await h.runClaude({ folder: "~/Documents/Claude-Vault", prompt: "hi", focus: true });
+    expect(calls).toContainEqual({ bin: "herdr", args: ["workspace", "focus", "7"] });
+    expect(calls).toContainEqual({
+      bin: "herdr",
+      args: ["tab", "create", "--workspace", "7", "--label", "Claude-Vault"],
+    });
+  });
+
   it("creates a new workspace with --cwd when no match exists", async () => {
     process.env.HOME = "/Users/test";
     const { sh, calls } = makeShStub({
