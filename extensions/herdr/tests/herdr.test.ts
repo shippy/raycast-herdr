@@ -242,3 +242,61 @@ describe("runAction prompt delivery", () => {
     expect(waitCall?.args).toContain("❯❯");
   });
 });
+
+describe("runClaude", () => {
+  it("reuses an existing workspace matching cwd and creates a tab in it", async () => {
+    process.env.HOME = "/Users/test";
+    const { sh, calls } = makeShStub({
+      "herdr workspace list": JSON.stringify({
+        result: {
+          workspaces: [
+            { workspace_id: "1", label: "other", focused: true, cwd: "/Users/test/other", tab_count: 1 },
+            { workspace_id: "2", label: "claude: Vault", focused: false, cwd: "/Users/test/Vault", tab_count: 1 },
+          ],
+        },
+      }),
+      "herdr tab create": JSON.stringify({ result: { root_pane: { pane_id: "2-2" } } }),
+    });
+    const h = createHerdr({ sh, bin: "herdr" });
+    await h.runClaude({ folder: "~/Vault", prompt: "hi", focus: true });
+    expect(calls).toContainEqual({ bin: "herdr", args: ["workspace", "focus", "2"] });
+    expect(calls).toContainEqual({
+      bin: "herdr",
+      args: ["tab", "create", "--workspace", "2", "--label", "claude: Vault"],
+    });
+    expect(calls).toContainEqual({ bin: "herdr", args: ["pane", "run", "2-2", "cd '/Users/test/Vault'"] });
+    expect(calls).toContainEqual({ bin: "herdr", args: ["pane", "run", "2-2", "claude"] });
+    expect(calls).toContainEqual({ bin: "herdr", args: ["pane", "send-text", "2-2", "hi"] });
+    expect(calls).toContainEqual({ bin: "herdr", args: ["pane", "send-keys", "2-2", "Enter"] });
+  });
+
+  it("creates a new workspace with --cwd when no match exists", async () => {
+    process.env.HOME = "/Users/test";
+    const { sh, calls } = makeShStub({
+      "herdr workspace list": JSON.stringify({ result: { workspaces: [] } }),
+      "herdr workspace create": JSON.stringify({ result: { root_pane: { pane_id: "5-1" } } }),
+    });
+    const h = createHerdr({ sh, bin: "herdr" });
+    await h.runClaude({ folder: "~/NewFolder", prompt: "q", focus: true });
+    expect(calls).toContainEqual({
+      bin: "herdr",
+      args: ["workspace", "create", "--cwd", "/Users/test/NewFolder", "--label", "claude: NewFolder"],
+    });
+    // No cd call in the new-workspace path — herdr's --cwd already places the pane.
+    expect(calls.find((c) => c.args[3]?.startsWith("cd "))).toBeUndefined();
+    expect(calls).toContainEqual({ bin: "herdr", args: ["pane", "run", "5-1", "claude"] });
+    expect(calls).toContainEqual({ bin: "herdr", args: ["pane", "send-text", "5-1", "q"] });
+  });
+
+  it("passes --no-focus when focus is false", async () => {
+    process.env.HOME = "/Users/test";
+    const { sh, calls } = makeShStub({
+      "herdr workspace list": JSON.stringify({ result: { workspaces: [] } }),
+      "herdr workspace create": JSON.stringify({ result: { root_pane: { pane_id: "1-1" } } }),
+    });
+    const h = createHerdr({ sh, bin: "herdr" });
+    await h.runClaude({ folder: "~/x", prompt: "p", focus: false });
+    const createCall = calls.find((c) => c.args[0] === "workspace" && c.args[1] === "create");
+    expect(createCall?.args).toContain("--no-focus");
+  });
+});

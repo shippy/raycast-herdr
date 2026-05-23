@@ -2,11 +2,9 @@ import { LaunchProps, getPreferenceValues, showToast, Toast } from "@raycast/api
 import { spawn } from "child_process";
 import { createHerdr } from "./herdr";
 import { findHerdr, sh } from "./exec";
-import type { Action } from "./config";
 
 interface Prefs {
   folder?: string;
-  placement?: "tab" | "workspace" | "split";
   focus?: boolean;
 }
 
@@ -25,22 +23,12 @@ function bringHerdrToFront() {
 export default async function Command(props: LaunchProps<{ arguments: { prompt: string } }>) {
   const prefs = getPreferenceValues<Prefs & ExtPrefs>();
   const folder = prefs.folder ?? "~/Documents/Claude-Vault";
-  const placement = prefs.placement ?? "tab";
   const focus = prefs.focus ?? true;
 
   try {
     const bin = await findHerdr(prefs.herdrPath);
     const h = createHerdr({ sh, bin });
-    const action: Action = {
-      id: "ask-claude-builtin",
-      name: "Ask Claude",
-      cwd: folder,
-      command: "claude",
-      prompt: { required: true, label: "Prompt", submitVia: "send-text" },
-      placement,
-      focus,
-    };
-    await h.runAction(action, props.arguments.prompt);
+    await h.runClaude({ folder, prompt: props.arguments.prompt, focus });
     if (focus) await bringHerdrToFront();
     await showToast({ style: Toast.Style.Success, title: "Asked Claude", message: folder });
   } catch (err) {

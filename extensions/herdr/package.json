@@ -36,23 +36,10 @@
         {
           "name": "folder",
           "title": "Folder",
-          "description": "Directory to run claude in.",
+          "description": "Directory to run claude in. Reuses an existing herdr workspace at this path, or creates a new one.",
           "type": "directory",
           "required": false,
           "default": "~/Documents/Claude-Vault"
-        },
-        {
-          "name": "placement",
-          "title": "Placement",
-          "description": "Where to put the new pane.",
-          "type": "dropdown",
-          "required": false,
-          "default": "tab",
-          "data": [
-            { "title": "New tab in focused workspace", "value": "tab" },
-            { "title": "New workspace", "value": "workspace" },
-            { "title": "Split focused pane", "value": "split" }
-          ]
         },
         {
           "name": "focus",

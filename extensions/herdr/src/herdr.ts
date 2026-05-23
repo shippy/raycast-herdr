@@ -16,6 +16,14 @@ export interface Herdr {
   focusedPaneId(): Promise<string>;
   focusWorkspace(id: string): Promise<void>;
   runAction(action: Action, prompt?: string): Promise<void>;
+  runClaude(opts: RunClaudeOptions): Promise<void>;
+}
+
+export interface RunClaudeOptions {
+  folder: string;
+  prompt: string;
+  focus: boolean;
+  labelPrefix?: string;
 }
 
 function shellQuote(s: string): string {
@@ -100,5 +108,36 @@ export function createHerdr({ sh, bin }: { sh: Sh; bin: string }): Herdr {
     }
   }
 
-  return { listWorkspaces, currentWorkspaceId, focusedPaneId, focusWorkspace, runAction };
+  async function runClaude(opts: RunClaudeOptions): Promise<void> {
+    const cwd = expandHome(opts.folder);
+    const focusFlag = opts.focus ? [] : ["--no-focus"];
+    const folderName = cwd.split("/").filter(Boolean).pop() ?? cwd;
+    const label = `${opts.labelPrefix ?? "claude"}: ${folderName}`;
+
+    const workspaces = await listWorkspaces();
+    const match = workspaces.find((w) => w.cwd === cwd);
+
+    let paneId: string;
+    if (match) {
+      if (opts.focus) await focusWorkspace(match.id);
+      const out = await sh(bin, ["tab", "create", "--workspace", match.id, ...focusFlag, "--label", label]);
+      paneId = String(JSON.parse(out).result.root_pane.pane_id);
+      await sh(bin, ["pane", "run", paneId, `cd ${shellQuote(cwd)}`]);
+    } else {
+      const out = await sh(bin, ["workspace", "create", "--cwd", cwd, ...focusFlag, "--label", label]);
+      paneId = String(JSON.parse(out).result.root_pane.pane_id);
+    }
+
+    await sh(bin, ["pane", "run", paneId, "claude"]);
+
+    try {
+      await sh(bin, ["wait", "output", paneId, "--match", DEFAULT_READY_MATCH, "--regex", "--timeout", "15000"]);
+    } catch {
+      await new Promise((r) => setTimeout(r, 500));
+    }
+    await sh(bin, ["pane", "send-text", paneId, opts.prompt]);
+    await sh(bin, ["pane", "send-keys", paneId, "Enter"]);
+  }
+
+  return { listWorkspaces, currentWorkspaceId, focusedPaneId, focusWorkspace, runAction, runClaude };
 }
