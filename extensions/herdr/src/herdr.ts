@@ -61,10 +61,28 @@ export function createHerdr({ sh, bin }: { sh: Sh; bin: string }): Herdr {
     await sh(bin, ["workspace", "focus", id]);
   }
 
-  async function runAction(_action: Action, _prompt?: string): Promise<void> {
-    void shellQuote;
-    void expandHome;
-    throw new Error("runAction is implemented in Tasks 5 and 6.");
+  async function runAction(action: Action, _prompt?: string): Promise<void> {
+    const cwd = expandHome(action.cwd);
+    const focusFlag = action.focus ? [] : ["--no-focus"];
+    const labelArgs = action.label ? ["--label", action.label] : [];
+
+    let paneId: string;
+    if (action.placement === "workspace") {
+      const out = await sh(bin, ["workspace", "create", "--cwd", cwd, ...focusFlag, ...labelArgs]);
+      paneId = String(JSON.parse(out).result.root_pane.pane_id);
+    } else if (action.placement === "tab") {
+      const wsId = await currentWorkspaceId();
+      const out = await sh(bin, ["tab", "create", "--workspace", wsId, ...focusFlag, ...labelArgs]);
+      paneId = String(JSON.parse(out).result.root_pane.pane_id);
+      await sh(bin, ["pane", "run", paneId, `cd ${shellQuote(cwd)}`]);
+    } else {
+      const focused = await focusedPaneId();
+      const out = await sh(bin, ["pane", "split", focused, "--direction", "right", ...focusFlag]);
+      paneId = String(JSON.parse(out).result.pane.pane_id);
+      await sh(bin, ["pane", "run", paneId, `cd ${shellQuote(cwd)}`]);
+    }
+
+    await sh(bin, ["pane", "run", paneId, action.command]);
   }
 
   return { listWorkspaces, currentWorkspaceId, focusedPaneId, focusWorkspace, runAction };
