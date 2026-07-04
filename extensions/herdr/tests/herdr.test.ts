@@ -267,8 +267,7 @@ describe("runClaude", () => {
     expect(calls).toContainEqual({ bin: "herdr", args: ["tab", "focus", "2:3"] });
     expect(calls).toContainEqual({ bin: "herdr", args: ["pane", "run", "2-2", "cd '/Users/test/Vault'"] });
     expect(calls).toContainEqual({ bin: "herdr", args: ["pane", "run", "2-2", "claude"] });
-    expect(calls).toContainEqual({ bin: "herdr", args: ["pane", "send-text", "2-2", "hi"] });
-    expect(calls).toContainEqual({ bin: "herdr", args: ["pane", "send-keys", "2-2", "Enter"] });
+    expect(calls).toContainEqual({ bin: "herdr", args: ["pane", "run", "2-2", "hi"] });
   });
 
   it("reuses by label when cwd is not exposed in workspace list", async () => {
@@ -307,7 +306,7 @@ describe("runClaude", () => {
     });
     expect(calls.find((c) => c.args[3]?.startsWith("cd "))).toBeUndefined();
     expect(calls).toContainEqual({ bin: "herdr", args: ["pane", "run", "5-1", "claude"] });
-    expect(calls).toContainEqual({ bin: "herdr", args: ["pane", "send-text", "5-1", "q"] });
+    expect(calls).toContainEqual({ bin: "herdr", args: ["pane", "run", "5-1", "q"] });
   });
 
   it("dismisses claude's first-run trust prompt before submitting the question", async () => {
@@ -334,13 +333,11 @@ describe("runClaude", () => {
     const claudeIdx = seq.indexOf("pane run 9-1 claude");
     const readIdx = seq.findIndex((s) => s.startsWith("pane read 9-1"));
     const trustEnterIdx = seq.findIndex((s, i) => i > readIdx && s === "pane send-keys 9-1 Enter");
-    const sendTextIdx = seq.findIndex((s) => s.startsWith("pane send-text 9-1 ask me anything"));
-    const finalEnterIdx = seq.findIndex((s, i) => i > sendTextIdx && s === "pane send-keys 9-1 Enter");
+    const submitIdx = seq.findIndex((s) => s === "pane run 9-1 ask me anything");
     expect(claudeIdx).toBeGreaterThan(-1);
     expect(readIdx).toBeGreaterThan(claudeIdx);
     expect(trustEnterIdx).toBeGreaterThan(readIdx);
-    expect(sendTextIdx).toBeGreaterThan(trustEnterIdx);
-    expect(finalEnterIdx).toBeGreaterThan(sendTextIdx);
+    expect(submitIdx).toBeGreaterThan(trustEnterIdx);
   });
 
   it("skips the trust-prompt Enter when pane read shows no trust prompt", async () => {
@@ -365,13 +362,13 @@ describe("runClaude", () => {
 
     const seq = calls.map((c) => c.args.join(" "));
     const claudeIdx = seq.indexOf("pane run 1-1 claude");
-    const sendTextIdx = seq.findIndex((s) => s.startsWith("pane send-text 1-1 q"));
-    // Between claude launch and sending the user's text, there should be exactly one
-    // pane read and no send-keys Enter (only the final Enter after send-text).
-    const enterBeforeText = seq
-      .slice(claudeIdx, sendTextIdx)
+    const submitIdx = seq.findIndex((s) => s === "pane run 1-1 q");
+    // Between claude launch and submission there should be no send-keys Enter
+    // (the trust-prompt dismissal, which we're skipping in this scenario).
+    const enterBefore = seq
+      .slice(claudeIdx, submitIdx)
       .filter((s) => s === "pane send-keys 1-1 Enter");
-    expect(enterBeforeText).toHaveLength(0);
+    expect(enterBefore).toHaveLength(0);
   });
 
   it("passes --no-focus when focus is false", async () => {
