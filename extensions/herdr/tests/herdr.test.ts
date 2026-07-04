@@ -255,7 +255,7 @@ describe("runClaude", () => {
           ],
         },
       }),
-      "herdr tab create": JSON.stringify({ result: { root_pane: { pane_id: "2-2" } } }),
+      "herdr tab create": JSON.stringify({ result: { tab: { tab_id: "2:3" }, root_pane: { pane_id: "2-2" } } }),
     });
     const h = createHerdr({ sh, bin: "herdr" });
     await h.runClaude({ folder: "~/Vault", prompt: "hi", focus: true });
@@ -264,6 +264,7 @@ describe("runClaude", () => {
       bin: "herdr",
       args: ["tab", "create", "--workspace", "2", "--label", "Vault"],
     });
+    expect(calls).toContainEqual({ bin: "herdr", args: ["tab", "focus", "2:3"] });
     expect(calls).toContainEqual({ bin: "herdr", args: ["pane", "run", "2-2", "cd '/Users/test/Vault'"] });
     expect(calls).toContainEqual({ bin: "herdr", args: ["pane", "run", "2-2", "claude"] });
     expect(calls).toContainEqual({ bin: "herdr", args: ["pane", "send-text", "2-2", "hi"] });
@@ -280,7 +281,7 @@ describe("runClaude", () => {
           ],
         },
       }),
-      "herdr tab create": JSON.stringify({ result: { root_pane: { pane_id: "7-2" } } }),
+      "herdr tab create": JSON.stringify({ result: { tab: { tab_id: "7:4" }, root_pane: { pane_id: "7-2" } } }),
     });
     const h = createHerdr({ sh, bin: "herdr" });
     await h.runClaude({ folder: "~/Documents/Claude-Vault", prompt: "hi", focus: true });
@@ -289,6 +290,7 @@ describe("runClaude", () => {
       bin: "herdr",
       args: ["tab", "create", "--workspace", "7", "--label", "Claude-Vault"],
     });
+    expect(calls).toContainEqual({ bin: "herdr", args: ["tab", "focus", "7:4"] });
   });
 
   it("creates a new workspace with --cwd when no match exists", async () => {

@@ -156,7 +156,11 @@ export function createHerdr({ sh, bin }: { sh: Sh; bin: string }): Herdr {
     if (match) {
       if (opts.focus) await focusWorkspace(match.id);
       const out = await sh(bin, ["tab", "create", "--workspace", match.id, ...focusFlag, "--label", label]);
-      paneId = String(JSON.parse(out).result.root_pane.pane_id);
+      const parsed = JSON.parse(out);
+      paneId = String(parsed.result.root_pane.pane_id);
+      if (opts.focus && parsed.result.tab?.tab_id) {
+        await sh(bin, ["tab", "focus", String(parsed.result.tab.tab_id)]);
+      }
       await sh(bin, ["pane", "run", paneId, `cd ${shellQuote(cwd)}`]);
     } else {
       const out = await sh(bin, ["workspace", "create", "--cwd", cwd, ...focusFlag, "--label", label]);
