@@ -1,23 +1,34 @@
-# Template to store extensions for your private Store in Raycast
+# raycast-herdr
 
-Automatically build & publish extensions to your private store in [Raycast](https://www.raycast.com/)
+Private Raycast extension for driving the running [herdr](https://herdr.dev) instance from Raycast.
 
-## :hammer_and_wrench: Features
+The extension lives in [`extensions/herdr/`](extensions/herdr/). See its [README](extensions/herdr/README.md) for command list, preferences, and action config format.
 
-- Easily build & publish your extensions to private store
-- Collaborate on extensions through Pull Requests with automatic validation
+## Commands
 
-## :robot: How to use ?
+- **Ask Claude** — open `claude` in a configured folder and submit a prompt. Reuses or creates a herdr workspace matching the folder.
+- **Run herdr Action** — pick and run a user-defined action from `~/.config/raycast-herdr/actions.json`.
+- **Focus herdr Workspace** — list and switch between herdr workspaces.
+- **Edit herdr Actions Config** — open the actions JSON in `$EDITOR`.
 
-1. Click the [Use this template](https://github.com/raycast/extensions-template/generate) button and generate a repository from this template.
-3. [Add a secret](https://docs.github.com/en/actions/security-guides/encrypted-secrets#creating-encrypted-secrets-for-a-repository) to generated repository named `RAYCAST_ORGANIZATION_TOKEN` with value being your [personal token](https://developers.raycast.com/teams-beta/publish-a-private-extension). You can read the `RAYCAST_ORGANIZATION_TOKEN` by running `ray token` on your local machine (or use the -C option to copy it to the clipboard automatically).
-4. Checkout new repository and create your extension in `extensions` subfolder (example: `extensions/hello-world/package.json`).
-5. Push your extension to the `main` branch and watch as the GitHub actions pick it up and publish it to your private store.
+## Design docs
 
-    Alternatively, push your extension to a different branch and create a Pull Requests for it that will validate it through automatic [status checks](https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/collaborating-on-repositories-with-code-quality-features/about-status-checks). To publish it simply merge a Pull Request to the `main` branch.
+- [Spec](docs/superpowers/specs/2026-05-23-raycast-herdr-design.md)
+- [Implementation plan](docs/superpowers/plans/2026-05-23-raycast-herdr.md)
 
-## :page_with_curl: Documentation & Resources
+## Development
 
-- See [Raycast](https://www.raycast.com/) for downloading Raycast
-- See [developers.raycast.com](https://developers.raycast.com/) for guides, examples, references, and more to help you build extensions.
-- See [Getting Started](https://developers.raycast.com/teams-beta/getting-started) for Raycast for Teams
+```bash
+cd extensions/herdr
+npm install
+npm test          # vitest
+npm run lint      # ray lint
+npm run build     # ray build
+npm run dev       # ray develop — installs into Raycast in dev mode
+```
+
+## Publishing
+
+The `.github/workflows/extensions_build_publish.yml` GitHub Action publishes to your private Raycast store on push to `main`. It requires a `RAYCAST_ORGANIZATION_TOKEN` repository secret — get it with `ray token -C` and paste into repo settings.
+
+Alternatively, push to a branch and open a PR to get automatic validation via status checks; merge to `main` publishes.
