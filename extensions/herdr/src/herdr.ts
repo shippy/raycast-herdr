@@ -168,6 +168,7 @@ export function createHerdr({ sh, bin }: { sh: Sh; bin: string }): Herdr {
     await waitForClaudeReady(paneId);
 
     await sh(bin, ["pane", "send-text", paneId, opts.prompt]);
+    await new Promise((r) => setTimeout(r, 400));
     await sh(bin, ["pane", "send-keys", paneId, "Enter"]);
   }
 
