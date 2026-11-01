@@ -1,19 +1,22 @@
 name: Build & Publish Extensions
 
+# Publishing only runs on pushes to the default branch (i.e. after a reviewed merge).
+# PR runs were removed: they received RAYCAST_ORGANIZATION_TOKEN while executing PR code.
 on:
-  pull_request:
-    paths:
-      - "extensions/**"
-    branches: [main, master]
   push:
     paths:
       - "extensions/**"
     branches: [main, master]
 
+permissions:
+  contents: read
+
 jobs:
   build_publish_extensions:
     name: Build & Publish Extensions
     runs-on: ubuntu-latest
+    # Token lives in the `raycast-publish` environment: protected branches only + required reviewer.
+    environment: raycast-publish
     steps:
       - name: ray
         uses: raycast/github-actions/ray@master
